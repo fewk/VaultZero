@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  vaultwarden:
+    image: vaultwarden/server:latest
+    container_name: vaultwarden
+    restart: unless-stopped
+    network_mode: "host"                 # Host networking: required for pure IPv6 and local tunnel communication
+    environment:
+      - ROCKET_PORT=8080                 # Listen on localhost:8080
+      - DOMAIN=${DOMAIN:-https://vault.yourdomain.com}
+      - SIGNUPS_ALLOWED=false            # Registration disabled after initial admin registration
+      - INVITATIONS_ALLOWED=false        # Disable invitations
+      - SHOW_PASSWORD_HINT=false         # Disable password hints on login page
+      - IP_HEADER=CF-Connecting-IP       # Pass real client IP from Cloudflare Tunnel
+      - LOGIN_RATELIMIT_MAX_BURST=10     # Max login attempts before rate limiting
+      - LOGIN_RATELIMIT_SECONDS=60       # Rate limit time window (seconds)
+      - LOG_LEVEL=warn
+      - EXTENDED_LOGGING=true
+      - ADMIN_TOKEN=${ADMIN_TOKEN:-}
+    volumes:
+      - /opt/vaultwarden/data:/data
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"                  # Restrict log size to prevent disk exhaustion
+        max-file: "3"
+
+  backup:
+    image: ttionya/vaultwarden-backup:latest
+    container_name: vaultwarden-backup
+    restart: unless-stopped
+    network_mode: "host"                 # Share host network to push backups via IPv6 + NAT64
+    depends_on:
+      - vaultwarden
+    environment:
+      - CRON=0 3 * * *                   # Run backup daily at 03:00
+      - ZIP_PASSWORD=${BACKUP_ZIP_PASS}  # AES zip encryption password
+      - BACKUP_KEEP_DAYS=30              # Retain last 30 days of backups in cloud storage
+      - RCLONE_REMOTE_NAME=${RCLONE_REMOTE_NAME:-r2:vaultwarden-backup}
+      - TIMEZONE=${TZ:-Asia/Shanghai}
+      # Optional Notification Settings:
+      # - TELEGRAM_BOT_TOKEN=${TG_BOT_TOKEN}
+      # - TELEGRAM_CHAT_ID=${TG_CHAT_ID}
+    volumes:
+      - /opt/vaultwarden/data:/vaultwarden/data:ro  # Read-only mount of vaultwarden data
+      - /opt/vaultwarden/rclone:/config/rclone      # Mount rclone configuration
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "2"
