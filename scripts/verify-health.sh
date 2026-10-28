@@ -45,8 +45,11 @@ GCP_EXTERNAL_IP=""
 GCP_METADATA_URL="http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip"
 
 # Query GCP metadata server if accessible (timeout 2s)
-if curl -sS -m 2 -H "Metadata-Flavor: Google" "${GCP_METADATA_URL}" >/dev/null 2>&1; then
-    GCP_EXTERNAL_IP="$(curl -sS -m 2 -H "Metadata-Flavor: Google" "${GCP_METADATA_URL}" 2>/dev/null || true)"
+# Note: Use -fsS so HTTP 404 (on instances launched with --no-address) causes curl to fail,
+# and validate with IPv4 regex to prevent any error text from being treated as an IP.
+RAW_GCP_IP="$(curl -fsS -m 2 -H "Metadata-Flavor: Google" "${GCP_METADATA_URL}" 2>/dev/null || true)"
+if [ -n "${RAW_GCP_IP}" ] && echo "${RAW_GCP_IP}" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}$'; then
+    GCP_EXTERNAL_IP="${RAW_GCP_IP}"
 fi
 
 if [ -n "${GCP_EXTERNAL_IP}" ]; then
@@ -112,8 +115,13 @@ elif command -v netstat >/dev/null 2>&1; then
 fi
 
 if [ -n "${SOCKET_INFO}" ]; then
-    # Look for listening sockets on :80 or :443 bound to 0.0.0.0, [::], or *
-    if echo "${SOCKET_INFO}" | grep -Eq 'LISTEN.*(0\.0\.0\.0|\*|\[::\]):(80|443)\b'; then
+    # In ss: State (LISTEN) appears BEFORE local address:
+    #   tcp   LISTEN 0   128   0.0.0.0:80   0.0.0.0:*
+    # In netstat: Local address appears BEFORE State (LISTEN):
+    #   tcp   0      0         0.0.0.0:80   0.0.0.0:*   LISTEN
+    #   tcp6  0      0         :::80        :::*        LISTEN
+    # Both ss and netstat column orders are handled below for 0.0.0.0, *, [::], and ::: (IPv6 unspecified).
+    if echo "${SOCKET_INFO}" | grep -Eq '(LISTEN.*(^|[[:space:]])(0\.0\.0\.0|\*|\[::\]|::):(80|443)\b|(^|[[:space:]])(0\.0\.0\.0|\*|\[::\]|::):(80|443)\b.*LISTEN)'; then
         EXPOSED_PORTS=1
     fi
 fi

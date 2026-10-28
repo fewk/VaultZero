@@ -64,14 +64,26 @@ FETCH_LATEST=0
 while [ $# -gt 0 ]; do
     case "$1" in
         -f|--file)
+            if [ $# -lt 2 ]; then
+                echo "[ERROR] Option $1 requires an argument." >&2
+                usage
+            fi
             BACKUP_FILE="$2"
             shift 2
             ;;
         -p|--password)
+            if [ $# -lt 2 ]; then
+                echo "[ERROR] Option $1 requires an argument." >&2
+                usage
+            fi
             PASSWORD="$2"
             shift 2
             ;;
         -r|--remote)
+            if [ $# -lt 2 ]; then
+                echo "[ERROR] Option $1 requires an argument." >&2
+                usage
+            fi
             RCLONE_REMOTE="$2"
             shift 2
             ;;
@@ -114,7 +126,8 @@ if [ -z "${PASSWORD}" ]; then
     )
     for env_path in "${ENV_LOCATIONS[@]}"; do
         if [ -f "${env_path}" ]; then
-            val="$(grep -E '^BACKUP_ZIP_PASS=' "${env_path}" 2>/dev/null | cut -d '=' -f2- | tr -d '\"'\'' ' || true)"
+            # Extract value after '=' and strip only enclosing quotes (preserving internal passphrase spaces)
+            val="$(grep -E '^BACKUP_ZIP_PASS=' "${env_path}" 2>/dev/null | head -n 1 | cut -d '=' -f2- | sed -e 's/^"\(.*\)"$/\1/' -e "s/^'\\(.*\\)'$/\\1/" || true)"
             if [ -n "${val}" ]; then
                 PASSWORD="${val}"
                 echo "==> Loaded BACKUP_ZIP_PASS from ${env_path}"
@@ -147,22 +160,29 @@ trap cleanup EXIT INT TERM
 if [ -z "${BACKUP_FILE}" ] || [ "${FETCH_LATEST}" -eq 1 ]; then
     echo "==> [1/6] Querying remote storage (${RCLONE_REMOTE}) for latest backup..."
     
-    # Check if rclone is available
-    RCLONE_CMD=""
+    # Check if rclone is available, or install via apt if package manager is present
+    if ! command -v rclone >/dev/null 2>&1; then
+        if command -v apt-get >/dev/null 2>&1; then
+            echo "    rclone not found. Attempting installation via apt-get..."
+            apt-get update -qy && apt-get install -qy --no-install-recommends rclone || true
+        fi
+    fi
+
+    RCLONE_CMD=()
     if command -v rclone >/dev/null 2>&1; then
         if [ -f "${RCLONE_CONFIG_FILE}" ]; then
-            RCLONE_CMD="rclone --config ${RCLONE_CONFIG_FILE}"
+            RCLONE_CMD=(rclone --config "${RCLONE_CONFIG_FILE}")
         else
-            RCLONE_CMD="rclone"
+            RCLONE_CMD=(rclone)
         fi
-    elif docker image inspect rclone/rclone >/dev/null 2>&1 || docker ps >/dev/null 2>&1; then
-        RCLONE_CMD="docker run --rm -v /opt/vaultwarden/rclone:/config/rclone rclone/rclone"
+    elif command -v docker >/dev/null 2>&1 && (docker image inspect rclone/rclone >/dev/null 2>&1 || docker ps >/dev/null 2>&1); then
+        RCLONE_CMD=(docker run --rm --network host -v "${TMP_WORK_DIR}:${TMP_WORK_DIR}" -v /opt/vaultwarden/rclone:/config/rclone rclone/rclone)
     else
         echo "[ERROR] Neither 'rclone' CLI nor Docker is available to fetch remote backups." >&2
         exit 1
     fi
 
-    LATEST_NAME="$(${RCLONE_CMD} lsf "${RCLONE_REMOTE}" --include "*.zip" 2>/dev/null | sort | tail -n 1 || true)"
+    LATEST_NAME="$("${RCLONE_CMD[@]}" lsf "${RCLONE_REMOTE}" --include "*.zip" 2>/dev/null | sort | tail -n 1 || true)"
     if [ -z "${LATEST_NAME}" ]; then
         echo "[ERROR] No .zip backup archives found in remote ${RCLONE_REMOTE}." >&2
         exit 1
@@ -170,7 +190,7 @@ if [ -z "${BACKUP_FILE}" ] || [ "${FETCH_LATEST}" -eq 1 ]; then
 
     echo "    Found latest remote backup: ${LATEST_NAME}"
     echo "    Downloading ${LATEST_NAME} to local staging..."
-    ${RCLONE_CMD} copy "${RCLONE_REMOTE}/${LATEST_NAME}" "${TMP_WORK_DIR}"
+    "${RCLONE_CMD[@]}" copy "${RCLONE_REMOTE}/${LATEST_NAME}" "${TMP_WORK_DIR}"
     BACKUP_FILE="${TMP_WORK_DIR}/${LATEST_NAME}"
 fi
 
@@ -234,6 +254,10 @@ if [ "$(ls -A "${VAULT_DATA_DIR}" 2>/dev/null)" ]; then
     BACKUP_SNAPSHOT="/opt/vaultwarden/data.bak.${TIMESTAMP}"
     echo "    Backing up existing data to ${BACKUP_SNAPSHOT}..."
     cp -a "${VAULT_DATA_DIR}" "${BACKUP_SNAPSHOT}"
+    # Stale SQLite WAL corruption safeguard:
+    # Clear existing target directory files before copying restored data to prevent
+    # leftover db.sqlite3-wal and db.sqlite3-shm from corrupting restored db.sqlite3.
+    find "${VAULT_DATA_DIR}" -mindepth 1 -delete
 fi
 
 EXTRACT_DIR="${TMP_WORK_DIR}/extracted"
@@ -248,11 +272,12 @@ fi
 
 cp -a "${SRC_DIR}/." "${VAULT_DATA_DIR}/"
 
-# Enforce strict 0700 permissions
+# Enforce strict root ownership and 0700 permissions
+chown -R root:root "${VAULT_DATA_DIR}"
 chmod 0700 "${VAULT_DATA_DIR}"
 chmod -R u=rwX,go= "${VAULT_DATA_DIR}" 2>/dev/null || chmod -R 0700 "${VAULT_DATA_DIR}"
 
-echo "    Extraction complete. Enforced 0700 permissions on ${VAULT_DATA_DIR}."
+echo "    Extraction complete. Enforced root:root ownership and 0700 permissions on ${VAULT_DATA_DIR}."
 
 # ------------------------------------------------------------------------------
 # 8. Restart Containers
