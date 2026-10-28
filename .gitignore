@@ -1,0 +1,40 @@
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+rclone.conf
+*.key
+*.enc
+*.pem
+*.crt
+.cloudflared/
+
+# Vaultwarden & Service Data
+data/
+
+# Backups & Archives
+*.zip
+*.tar
+*.tar.gz
+*.7z
+
+# Python & Pytest
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+venv/
+ENV/
+
+# System & Editor Files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.log
