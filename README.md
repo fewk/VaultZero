@@ -91,58 +91,68 @@ flowchart TD
 
 ---
 
+## Step-by-Step Deployment Guides
+
+For detailed, production-grade deployment instructions, follow our comprehensive runbooks:
+
+- 📖 **[GCP Always Free VM Deployment Guide](docs/gcp-deployment.md)**: Exact copy-pasteable `gcloud` CLI commands and GCP Web Console instructions to provision an `e2-micro` VM with dual-stack VPC (`IPV4_IPV6`), no public IPv4 (`--no-address`), and strict IAP firewall rules (`35.235.240.0/20`).
+- 🛡️ **[Cloudflare Zero Trust, WAF & R2 Configuration Guide](docs/cloudflare-setup.md)**: Cloudflare Tunnel setup, public hostname routing (`127.0.0.1:8080`), WAF login rate limiting (`/identity/connect/token`), Zero Trust Access email OTP protection for `/admin`, and R2 encrypted backup configuration.
+
+---
+
 ## 3-Step Quickstart
 
 ### Step 1: Provision GCP Always Free Instance
 
-Run the automated provisioning script using Google Cloud SDK (`gcloud`):
+Follow the [GCP Deployment Guide](docs/gcp-deployment.md) to provision an `e2-micro` VM with dual-stack VPC (`IPV4_IPV6`), no external IPv4 (`--no-address`), a free `/96` external IPv6 subnet, 30 GB standard persistent disk, and firewall rules restricted to GCP IAP (`35.235.240.0/20`).
 
-```bash
-# Set your target project and region (e.g. us-west1)
-gcloud config set project YOUR_PROJECT_ID
-
-# Run the automated deployment script
-bash scripts/deploy-gcp.sh
-```
-
-This provisions an `e2-micro` VM with dual-stack VPC (`IPV4_IPV6`), no external IPv4 (`--no-address`), a free `/96` external IPv6 subnet, 30 GB standard persistent disk, and firewall rules restricted to GCP IAP (`35.235.240.0/20`).
-
-### Step 2: Configure Secrets & Cloudflare Tunnel
-
-Connect via Google Cloud IAP SSH:
+Connect to your instance securely via Google Cloud IAP SSH:
 
 ```bash
 gcloud compute ssh vaultwarden-free --tunnel-through-iap --zone us-west1-b
 ```
 
-On the VM, clone this repository and create your configuration files:
+### Step 2: Bootstrap VM & Cloudflare Tunnel
+
+On the VM, clone this repository and run the automated host bootstrap:
 
 ```bash
-git clone https://github.com/fewk/VaultZero.git /opt/vaultwarden
-cd /opt/vaultwarden
+sudo -i
+git clone https://github.com/fewk/VaultZero.git /opt/vaultzero
+cd /opt/vaultzero
 
-# Set up environment variables
+# Bootstrap DNS64/NAT64 resolvers, 1GB swap, Docker CE, and directory hierarchy
+bash scripts/01-bootstrap-vm.sh
+
+# Follow docs/cloudflare-setup.md to create your tunnel, then install cloudflared:
+bash scripts/02-setup-cloudflared.sh YOUR_CLOUDFLARE_TUNNEL_TOKEN
+```
+
+Configure your secrets and R2 backup credentials:
+
+```bash
+# Configure environment variables
 cp .env.example .env
 nano .env
 
-# Configure Cloudflare R2 credentials in Rclone
-cp rclone/rclone.conf.example rclone/rclone.conf
-nano rclone/rclone.conf
-
-# Install and configure cloudflared
-cloudflared service install YOUR_CLOUDFLARE_TUNNEL_TOKEN
+# Configure Cloudflare R2 credentials for automated backups
+cp rclone/rclone.conf.example /opt/vaultwarden/rclone/rclone.conf
+nano /opt/vaultwarden/rclone/rclone.conf
+chmod 0600 /opt/vaultwarden/rclone/rclone.conf
 ```
 
 ### Step 3: Deploy Services & Verify
 
-Start Vaultwarden and the automated backup daemon:
+Start Vaultwarden and the automated backup companion daemon:
 
 ```bash
 docker compose up -d
 
-# Verify health and zero-port containment
+# Verify zero public IPv4, zero public listening ports, and health
 bash scripts/verify-health.sh
 ```
+
+Follow the [Cloudflare Setup Guide](docs/cloudflare-setup.md) to enable WAF rate limiting on `/identity/connect/token` and protect `/admin` with Zero Trust Email OTP.
 
 Access your Vaultwarden instance securely at `https://vault.yourdomain.com`!
 
@@ -157,23 +167,28 @@ VaultZero/
 ├── LICENSE                   # MIT License
 ├── README.md                 # Project architecture and operations guide
 ├── docker-compose.yml        # Docker Compose orchestration (Vaultwarden + Backup)
-├── docs/                     # Architecture specifications and implementation plans
+├── docs/                     # Architecture specifications and implementation runbooks
+│   ├── cloudflare-setup.md   # Cloudflare Tunnel, WAF, Zero Trust & R2 runbook
+│   ├── gcp-deployment.md     # GCP Always Free VM & dual-stack VPC runbook
 │   └── superpowers/
 │       ├── plans/            # Implementation plans
 │       └── specs/            # Engineering specifications
 ├── rclone/                   # Rclone configuration templates for Cloudflare R2
 │   └── rclone.conf.example
-├── scripts/                  # Automation scripts (GCP deploy, restore, health check)
-│   ├── deploy-gcp.sh         # Idempotent GCP Always Free VM provisioner
-│   ├── restore-drill.sh      # Automated 3-minute disaster recovery drill
-│   └── verify-health.sh      # Health and security audit script
+├── scripts/                  # Automated host lifecycle and operational scripts
+│   ├── 01-bootstrap-vm.sh    # DNS64/NAT64, swap, Docker, and filesystem bootstrap
+│   ├── 02-setup-cloudflared.sh # Cloudflare Tunnel IPv6 service installer
+│   ├── 03-restore-backup.sh  # Zero-downtime disaster recovery & restore drill (< 3 min)
+│   └── verify-health.sh      # Security invariant and architecture health auditor
 ├── systemd/                  # Systemd service configurations (cloudflared pure IPv6)
 │   └── cloudflared.service
 └── tests/                    # Automated test harness (pytest)
+    ├── test_bootstrap_script.py
+    ├── test_cloudflared_config.py
     ├── test_docker_compose.py
-    ├── test_gcp_deploy_script.py
-    ├── test_recovery_drill.py
-    └── test_repo_structure.py
+    ├── test_docs_links.py
+    ├── test_repo_structure.py
+    └── test_utility_scripts.py
 ```
 
 ---
@@ -181,7 +196,7 @@ VaultZero/
 ## Security & Maintenance
 
 - **Backups**: Backups run automatically every night, creating an AES-256 encrypted archive and syncing to Cloudflare R2.
-- **Disaster Recovery Drill**: Run `bash scripts/restore-drill.sh` to test restoring SQLite databases, attachments, and secrets in under 3 minutes.
+- **Disaster Recovery Drill**: Run `bash scripts/03-restore-backup.sh --latest` to test restoring SQLite databases, attachments, and secrets in under 3 minutes.
 - **Updates**: Run `docker compose pull && docker compose up -d` to upgrade Vaultwarden and backup containers with zero data loss.
 
 ---
