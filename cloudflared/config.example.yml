@@ -1,0 +1,23 @@
+# ==============================================================================
+# Cloudflare Tunnel Configuration Template (Pure IPv6 Native)
+# ==============================================================================
+# Copy this file to /etc/cloudflared/config.yml (permissions: 0600)
+# Replace <TUNNEL_UUID> and vault.yourdomain.com with your actual values.
+# ==============================================================================
+
+tunnel: <TUNNEL_UUID>
+credentials-file: /root/.cloudflared/<TUNNEL_UUID>.json
+
+# Critical: Force pure IPv6 edge connections to eliminate IPv4 timeout loops
+edge-ip-version: "6"
+
+# Use QUIC (UDP) protocol for reduced latency and high throughput
+protocol: quic
+
+ingress:
+  # Route traffic for Vaultwarden to local host port 8080
+  - hostname: vault.yourdomain.com
+    service: http://127.0.0.1:8080
+
+  # Mandatory catch-all rule: returns HTTP 404 for any unmatched traffic
+  - service: http_status:404
