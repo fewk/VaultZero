@@ -34,6 +34,7 @@ def test_docker_compose_schema_and_constraints():
     vw_env = parse_env_list_or_dict(vw.get("environment", []))
     assert vw_env.get("IP_HEADER") == "CF-Connecting-IP", "IP_HEADER must be CF-Connecting-IP"
     assert vw_env.get("SIGNUPS_ALLOWED") == "false"
+    assert vw_env.get("ROCKET_ADDRESS") == "127.0.0.1", "ROCKET_ADDRESS must be 127.0.0.1"
     assert vw_env.get("ROCKET_PORT") == "8080"
     assert vw_env.get("LOGIN_RATELIMIT_MAX_BURST") == "10"
     assert vw_env.get("LOGIN_RATELIMIT_SECONDS") == "60"

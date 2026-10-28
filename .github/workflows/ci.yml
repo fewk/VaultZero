@@ -29,10 +29,12 @@ jobs:
 
       - name: Verify shell script syntax (bash -n)
         run: |
-          echo "Validating shell scripts in scripts/..."
-          for script in scripts/*.sh; do
-            echo "Checking $script..."
-            bash -n "$script"
+          echo "Validating shell scripts..."
+          for script in scripts/*.sh vaultzero.sh; do
+            if [ -f "$script" ]; then
+              echo "Checking $script..."
+              bash -n "$script"
+            fi
           done
 
       - name: Validate Docker Compose configuration

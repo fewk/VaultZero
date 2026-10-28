@@ -114,26 +114,24 @@ gcloud compute ssh vaultwarden-free --tunnel-through-iap --zone us-west1-b
 
 ### Step 2: Bootstrap VM & Cloudflare Tunnel
 
-On the VM, clone this repository and run the automated host bootstrap:
+On the VM, clone this repository and run the automated setup using the unified CLI:
 
 ```bash
 sudo -i
 git clone https://github.com/fewk/VaultZero.git /opt/vaultzero
 cd /opt/vaultzero
 
-# Bootstrap DNS64/NAT64 resolvers, 1GB swap, Docker CE, and directory hierarchy
-bash scripts/01-bootstrap-vm.sh
-
-# Follow docs/cloudflare-setup.md to create your tunnel, then install cloudflared:
-bash scripts/02-setup-cloudflared.sh YOUR_CLOUDFLARE_TUNNEL_TOKEN
+# Run one-step setup (DNS64/NAT64, 1GB swap, Docker CE, and Cloudflare Tunnel):
+bash ./vaultzero.sh setup YOUR_CLOUDFLARE_TUNNEL_TOKEN
 ```
 
 Configure your secrets and R2 backup credentials:
 
 ```bash
 # Configure environment variables
-cp .env.example .env
-nano .env
+cp .env.example /opt/vaultwarden/.env
+nano /opt/vaultwarden/.env
+chmod 0600 /opt/vaultwarden/.env
 
 # Configure Cloudflare R2 credentials for automated backups
 cp rclone/rclone.conf.example /opt/vaultwarden/rclone/rclone.conf
@@ -146,10 +144,11 @@ chmod 0600 /opt/vaultwarden/rclone/rclone.conf
 Start Vaultwarden and the automated backup companion daemon:
 
 ```bash
-docker compose up -d
+cd /opt/vaultzero
+./vaultzero.sh up
 
 # Verify zero public IPv4, zero public listening ports, and health
-bash scripts/verify-health.sh
+./vaultzero.sh verify
 ```
 
 Follow the [Cloudflare Setup Guide](docs/cloudflare-setup.md) to enable WAF rate limiting on `/identity/connect/token` and protect `/admin` with Zero Trust Email OTP.
@@ -162,6 +161,8 @@ Access your Vaultwarden instance securely at `https://vault.yourdomain.com`!
 
 ```text
 VaultZero/
+├── AGENTS.md                 # AI agent runbook & autonomous deployment guidelines
+├── vaultzero.sh              # Unified operator & agent management CLI
 ├── .env.example              # Sample environment configuration template
 ├── .gitignore                # Git exclusions for secrets and runtime data
 ├── LICENSE                   # MIT License
@@ -180,24 +181,27 @@ VaultZero/
 │   ├── 02-setup-cloudflared.sh # Cloudflare Tunnel IPv6 service installer
 │   ├── 03-restore-backup.sh  # Zero-downtime disaster recovery & restore drill (< 3 min)
 │   └── verify-health.sh      # Security invariant and architecture health auditor
-├── systemd/                  # Systemd service configurations (cloudflared pure IPv6)
-│   └── cloudflared.service
 └── tests/                    # Automated test harness (pytest)
-    ├── test_bootstrap_script.py
-    ├── test_cloudflared_config.py
-    ├── test_docker_compose.py
-    ├── test_docs_links.py
-    ├── test_repo_structure.py
-    └── test_utility_scripts.py
 ```
 
 ---
 
-## Security & Maintenance
+## AI Agent Integration
 
-- **Backups**: Backups run automatically every night, creating an AES-256 encrypted archive and syncing to Cloudflare R2.
-- **Disaster Recovery Drill**: Run `bash scripts/03-restore-backup.sh --latest` to test restoring SQLite databases, attachments, and secrets in under 3 minutes.
-- **Updates**: Run `docker compose pull && docker compose up -d` to upgrade Vaultwarden and backup containers with zero data loss.
+This repository includes [`AGENTS.md`](AGENTS.md) — a dedicated operational runbook specifically tailored for autonomous AI agents (Antigravity, Claude Code, Cursor, Copilot, Cline, Windsurf, Aider). It defines core invariant safety guardrails, step-by-step autonomous execution playbooks, troubleshooting heuristics, and health audit verification procedures.
+
+---
+
+## Security & Operations CLI
+
+Use `./vaultzero.sh` for routine maintenance:
+
+- **Check Status**: `./vaultzero.sh status` (containers, tunnel service, memory & port health).
+- **Security Audit**: `./vaultzero.sh verify` (run 6-point invariant security audit).
+- **Trigger Backup**: `./vaultzero.sh backup` (instant hot backup to Cloudflare R2).
+- **Disaster Recovery**: `./vaultzero.sh restore --latest` (sub-3-minute recovery drill).
+- **Live Logs**: `./vaultzero.sh logs vaultwarden` (or `backup` / `tunnel`).
+- **Updates**: Run `docker compose pull && ./vaultzero.sh restart` to upgrade containers with zero data loss.
 
 ---
 

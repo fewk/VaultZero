@@ -320,6 +320,9 @@ else
     echo "======================================================================" >&2
     echo " [ERROR] Vaultwarden container failed health verification on port 8080." >&2
     echo "         Check logs with: docker compose logs vaultwarden" >&2
+    if [ -n "${BACKUP_SNAPSHOT:-}" ] && [ -d "${BACKUP_SNAPSHOT:-}" ]; then
+        echo "         Pre-restore rollback snapshot preserved at: ${BACKUP_SNAPSHOT}" >&2
+    fi
     echo "======================================================================" >&2
     exit 1
 fi
