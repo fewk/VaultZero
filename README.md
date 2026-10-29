@@ -132,49 +132,56 @@ cd /opt/vaultzero
 ./vaultzero.sh setup YOUR_CLOUDFLARE_TUNNEL_TOKEN
 ```
 
-Configure your domain and secrets:
+### Step 2: Configure Domain & Launch Core Vault (Live in 3 Minutes)
+
+Configure your public domain and start Vaultwarden immediately:
 
 ```bash
-# Configure environment variables
+# 1. Copy environment template and configure your domain (DOMAIN=https://vault.yourdomain.com)
 cp .env.example /opt/vaultwarden/.env
 nano /opt/vaultwarden/.env
 chmod 0600 /opt/vaultwarden/.env
 
-# Configure Cloudflare R2 credentials for automated backups (UID 1100 requires read access)
-cp rclone/rclone.conf.example /opt/vaultwarden/rclone/rclone.conf
-nano /opt/vaultwarden/rclone/rclone.conf
-chmod 0644 /opt/vaultwarden/rclone/rclone.conf
-```
-
-### Step 3: Deploy Services & Create Admin Account
-
-Start Vaultwarden and the automated backup companion daemon:
-
-```bash
+# 2. Start Vaultwarden core service (launches cleanly even before backup is configured)
 cd /opt/vaultzero
 ./vaultzero.sh up
 
-# Open registration temporarily to create your master admin account
+# 3. Open registration temporarily to create your master admin account
 ./vaultzero.sh register on
 
-# Visit https://vault.yourdomain.com and create your account!
-# When done, immediately lock registration for maximum security:
+# 4. Visit your domain in a browser and create your account!
+# When done, immediately lock registration:
 ./vaultzero.sh register off
 
-# Verify zero public IPv4, zero public listening ports, and health
+# 5. Run full 6-point invariant security & health audit
 ./vaultzero.sh verify
 ```
 
-Follow the [Cloudflare Setup Guide](docs/cloudflare-setup.md) to enable WAF rate limiting on `/identity/connect/token` and protect `/admin` with Zero Trust Email OTP.
-
-Access your Vaultwarden instance securely at `https://vault.yourdomain.com`!
+> 🎉 **Congratulations!** Your private Vaultwarden vault is now **100% operational and production-ready**. You can connect mobile apps and browser extensions right away.
 
 ---
 
-### Advanced: Multi-Cloud Redundant Backup (Cloudflare R2 + WebDAV)
+### Step 3: (Strongly Recommended) Configure Offsite Disaster Recovery
 
-To achieve true 3-2-1 multi-cloud redundancy, you can configure secondary backup destinations (e.g. InfiniCLOUD, Nextcloud, Synology NAS, or WebDAV) alongside Cloudflare R2:
+Once your vault is running, configure automated offsite encrypted backups anytime:
 
+#### Option A: Cloudflare R2 (Free 10GB / $0 Egress)
+1. Create bucket `vaultwarden-backup` in Cloudflare Dashboard -> **R2**.
+2. Create an R2 API Token with **Object Read & Write** permissions.
+3. Configure Rclone:
+   ```bash
+   cp rclone/rclone.conf.example /opt/vaultwarden/rclone/rclone.conf
+   nano /opt/vaultwarden/rclone/rclone.conf  # Enter Access Key ID and Secret Access Key
+   chmod 0644 /opt/vaultwarden/rclone/rclone.conf
+   ```
+4. Set AES zip encryption password `BACKUP_ZIP_PASS` in `/opt/vaultwarden/.env`.
+5. Restart and trigger immediate backup test:
+   ```bash
+   ./vaultzero.sh restart
+   ./vaultzero.sh backup
+   ```
+
+#### Option B: WebDAV or Multi-Cloud Dual Backup (InfiniCLOUD / Synology NAS / Nextcloud)
 1. **Obscure WebDAV Password**:
    ```bash
    docker exec vaultwarden-backup rclone obscure "your_plain_password"
@@ -198,6 +205,10 @@ To achieve true 3-2-1 multi-cloud redundancy, you can configure secondary backup
    ./vaultzero.sh restart
    docker exec vaultwarden-backup /app/backup.sh
    ```
+
+---
+
+Follow the [Cloudflare Setup Guide](docs/cloudflare-setup.md) to enable WAF rate limiting on `/identity/connect/token` and protect `/admin` with Zero Trust Email OTP.
 
 ---
 

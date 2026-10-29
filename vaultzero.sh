@@ -97,8 +97,16 @@ cmd_verify() {
 
 cmd_up() {
     echo "==> Starting VaultZero containers..."
-    docker compose -f "${COMPOSE_DIR}/docker-compose.yml" up -d
-    echo "==> Containers started."
+    local rclone_conf="/opt/vaultwarden/rclone/rclone.conf"
+    if [ ! -f "${rclone_conf}" ] && [ ! -f "${COMPOSE_DIR}/rclone/rclone.conf" ]; then
+        echo "==> [NOTICE] Rclone backup config not found. Starting Vaultwarden core service first..."
+        docker compose -f "${COMPOSE_DIR}/docker-compose.yml" up -d vaultwarden
+        echo "==> [SUCCESS] Vaultwarden core service is UP and running!"
+        echo "    (Tip: Automated offsite backup is optional. To enable later, configure rclone.conf and run: ./vaultzero.sh restart)"
+    else
+        docker compose -f "${COMPOSE_DIR}/docker-compose.yml" up -d
+        echo "==> [SUCCESS] Vaultwarden and Backup companion services are UP and running."
+    fi
 }
 
 cmd_down() {
@@ -109,7 +117,12 @@ cmd_down() {
 
 cmd_restart() {
     echo "==> Restarting VaultZero containers (reloading configuration)..."
-    docker compose -f "${COMPOSE_DIR}/docker-compose.yml" up -d --force-recreate
+    local rclone_conf="/opt/vaultwarden/rclone/rclone.conf"
+    if [ ! -f "${rclone_conf}" ] && [ ! -f "${COMPOSE_DIR}/rclone/rclone.conf" ]; then
+        docker compose -f "${COMPOSE_DIR}/docker-compose.yml" up -d --force-recreate vaultwarden
+    else
+        docker compose -f "${COMPOSE_DIR}/docker-compose.yml" up -d --force-recreate
+    fi
     if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
         echo "==> Restarting cloudflared.service..."
         systemctl restart cloudflared.service || true
@@ -173,14 +186,18 @@ cmd_logs() {
 }
 
 cmd_backup() {
-    echo "==> Triggering on-demand hot backup via vaultwarden-backup container..."
-    if docker ps --format '{{.Names}}' | grep -q '^vaultwarden-backup$'; then
-        docker exec vaultwarden-backup /app/backup.sh
-        echo "==> [SUCCESS] Hot backup execution completed."
-    else
-        echo "[ERROR] Container vaultwarden-backup is not running." >&2
+    local rclone_conf="/opt/vaultwarden/rclone/rclone.conf"
+    if [ ! -f "${rclone_conf}" ] && [ ! -f "${COMPOSE_DIR}/rclone/rclone.conf" ]; then
+        echo "[ERROR] Automated backup is not configured yet." >&2
+        echo "Please configure /opt/vaultwarden/rclone/rclone.conf (e.g. Cloudflare R2 or WebDAV) first." >&2
+        echo "See README.md or rclone/rclone.conf.example for instructions." >&2
         exit 1
     fi
+    echo "==> Ensuring vaultwarden-backup companion container is running..."
+    docker compose -f "${COMPOSE_DIR}/docker-compose.yml" up -d vaultwarden-backup
+    echo "==> Triggering on-demand hot backup via vaultwarden-backup container..."
+    docker exec vaultwarden-backup /app/backup.sh
+    echo "==> [SUCCESS] Hot backup execution completed."
 }
 
 cmd_restore() {

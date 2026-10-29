@@ -144,31 +144,67 @@ cd /opt/vaultzero
 sudo bash ./vaultzero.sh setup <YOUR_CLOUDFLARE_TUNNEL_TOKEN>
 ```
 
-### Step 4: Configure Secrets & Start Containers
+### Step 4: Configure Domain & Launch Vaultwarden Core
+> **Important Rule for Agents**: DO NOT block initial startup on Cloudflare R2 or WebDAV credentials! Get Vaultwarden live, secure, and verified first, then guide the user to configure offsite backups as an enhancement.
+
 ```bash
 # 1. Prepare configuration directory
 sudo cp /opt/vaultzero/docker-compose.yml /opt/vaultwarden/docker-compose.yml
 sudo cp /opt/vaultzero/.env.example /opt/vaultwarden/.env
 
-# 2. Edit .env (set DOMAIN, BACKUP_ZIP_PASS, ADMIN_TOKEN)
+# 2. Edit .env (set DOMAIN to user's Cloudflare Tunnel hostname, e.g. https://pw.example.com)
 sudo nano /opt/vaultwarden/.env
 sudo chmod 0600 /opt/vaultwarden/.env
 
-# 3. Configure Rclone for Cloudflare R2 backup
-sudo cp /opt/vaultzero/rclone/rclone.conf.example /opt/vaultwarden/rclone/rclone.conf
-sudo nano /opt/vaultwarden/rclone/rclone.conf
-sudo chmod 0600 /opt/vaultwarden/rclone/rclone.conf
-
-# 4. Start services
+# 3. Start Vaultwarden core service (launches Vaultwarden cleanly even before R2 is configured)
 cd /opt/vaultzero
 sudo ./vaultzero.sh up
 ```
 
-### Step 5: Verify Deployment Invariants
+### Step 5: Register Admin Account & Lock Down
 ```bash
+# 1. Temporarily open registration
+sudo ./vaultzero.sh register on
+
+# 2. Guide user to visit their DOMAIN (e.g. https://pw.example.com) and create their master account.
+
+# 3. Immediately close registration once account is created:
+sudo ./vaultzero.sh register off
+
+# 4. Run full security & health verification
 sudo ./vaultzero.sh verify
 ```
-Expected output: **All 6 invariant checks PASSED (0 FAILURES)**.
+Expected output: **All invariant checks PASSED (0 FAILURES)**. Vaultwarden is now fully production-ready!
+
+---
+
+### Step 6: (Strongly Recommended) Configure Offsite Disaster Recovery (R2 / WebDAV)
+Once the vault is verified and running, configure automated daily offsite backups:
+
+1. **Option A: Cloudflare R2 (Free 10GB / $0 Egress)**:
+   - Create bucket `vaultwarden-backup` in Cloudflare Dashboard.
+   - Generate R2 API Token (Object Read & Write).
+   - Write `/opt/vaultwarden/rclone/rclone.conf`:
+     ```ini
+     [r2]
+     type = s3
+     provider = Cloudflare
+     access_key_id = <ACCESS_KEY_ID>
+     secret_access_key = <SECRET_ACCESS_KEY>
+     endpoint = https://<ACCOUNT_ID>.r2.cloudflarestorage.com
+     acl = private
+     no_check_bucket = true
+     ```
+   - Set permissions: `sudo chmod 0644 /opt/vaultwarden/rclone/rclone.conf`
+   - Set `BACKUP_ZIP_PASS` in `/opt/vaultwarden/.env`.
+   - Start backup companion daemon: `sudo ./vaultzero.sh restart`.
+   - Test backup: `sudo ./vaultzero.sh backup`.
+
+2. **Option B: WebDAV (InfiniCLOUD / Jianguoyun / Synology NAS / Nextcloud)**:
+   - Run: `docker exec vaultwarden-backup rclone obscure "your_password"`
+   - Add `[webdav]` section in `/opt/vaultwarden/rclone/rclone.conf`.
+   - Set `RCLONE_REMOTE_NAME_1=webdav` and `RCLONE_REMOTE_DIR_1=/vaultwarden-backup` in `.env`.
+   - Restart and test backup: `sudo ./vaultzero.sh backup`.
 
 ---
 

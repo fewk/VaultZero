@@ -166,48 +166,60 @@ cd /opt/vaultzero
 ./vaultzero.sh setup YOUR_CLOUDFLARE_TUNNEL_TOKEN
 ```
 
-配置环境变量与 R2 备份密钥：
+### 第二步：配置域名并启动服务（3 分钟快速上线）
+
+只需配置您的访问域名，即可秒级拉起服务并开始使用：
 
 ```bash
-# 拷贝并编辑环境变量文件
+# 1. 拷贝环境变量文件并填入您的完整域名（例如 DOMAIN=https://vault.yourdomain.com）
 cp .env.example /opt/vaultwarden/.env
 nano /opt/vaultwarden/.env
 chmod 0600 /opt/vaultwarden/.env
 
-# 配置 Cloudflare R2 对象存储密钥（供自动热备使用，容器以 UID 1100 运行需读权限）
-cp rclone/rclone.conf.example /opt/vaultwarden/rclone/rclone.conf
-nano /opt/vaultwarden/rclone/rclone.conf
-chmod 0644 /opt/vaultwarden/rclone/rclone.conf
-```
-
----
-
-### 第三步：启动金库服务与安全巡检
-
-```bash
+# 2. 启动 Vaultwarden 核心服务
 cd /opt/vaultzero
-
-# 启动 VaultZero 容器服务
 ./vaultzero.sh up
 
-# 临时开启新用户注册以创建首个主管理员账号
+# 3. 临时开启注册以创建您的首个主管理员账号
 ./vaultzero.sh register on
 
-# 浏览器访问您的域名（例如 https://vault.yourdomain.com）创建主账号！
-# 注册成功后，立即关闭公网注册锁死大门（确保金库私有独占）：
+# 4. 浏览器打开您的域名完成注册，创建完毕后立即闭门独占：
 ./vaultzero.sh register off
 
-# 执行安全与健康巡检，验证 0 公网 IPv4 扣费与 0 端口暴露
+# 5. 执行全套安全健康巡检，验证 0 公网 IPv4 扣费与 0 端口暴露
 ./vaultzero.sh verify
 ```
 
-最后参考 [Cloudflare 配置指南](docs/cloudflare-setup.md) 为 `/identity/connect/token` 部署防暴破 WAF 限流规则，并为 `/admin*` 启用邮箱 OTP 双因素认证保护！
+> 🎉 **恭喜！** 到这一步，您的 Vaultwarden 已经 **100% 具备生产可用性**！手机 App 和浏览器扩展插件均可直接填入您的域名开始存取密码。
 
 ---
 
-### 进阶：多云异地容灾备份（Cloudflare R2 + WebDAV 双备份）
+### 第三步：（强烈建议）配置异地全自动容灾备份
 
-如果您希望在 Cloudflare R2 的基础上，同时备份到私有 WebDAV（如 InfiniCLOUD / 坚果云 / 群晖 NAS / Nextcloud）：
+密码库核心在于数据资产永不丢失。服务上线后，强烈建议在闲暇时配置异地自动加密热备份（支持 Cloudflare R2、WebDAV 或两者并发备份）：
+
+#### 方案 A：Cloudflare R2 对象存储（每月 10GB 永久免费 / 0 出流量费）
+1. 登录 Cloudflare Dashboard，在 **R2** 中新建存储桶 `vaultwarden-backup`。
+2. 在 **管理 R2 API 令牌** 中创建一个具有“对象读写”权限的 API Token。
+3. 复制并写入 Rclone 配置文件：
+   ```bash
+   cp rclone/rclone.conf.example /opt/vaultwarden/rclone/rclone.conf
+   nano /opt/vaultwarden/rclone/rclone.conf   # 填入您的 Access Key ID 和 Secret Access Key
+   chmod 0644 /opt/vaultwarden/rclone/rclone.conf
+   ```
+4. 在 `/opt/vaultwarden/.env` 中设置备份压缩包的 AES 解密密码（`BACKUP_ZIP_PASS`）。
+5. 重启加载备份守护容器并立即测试：
+   ```bash
+   cd /opt/vaultzero
+   ./vaultzero.sh restart
+   ./vaultzero.sh backup
+   ```
+
+---
+
+#### 方案 B：私有 WebDAV 或多云双备份（InfiniCLOUD / 坚果云 / 群晖 NAS / Nextcloud）
+
+如果您希望使用 WebDAV 备份，或在 Cloudflare R2 的基础上增加 WebDAV 形成多云双保险：
 
 1. **生成 WebDAV 加密密码**：
    ```bash
@@ -233,6 +245,10 @@ cd /opt/vaultzero
    ./vaultzero.sh restart
    docker exec vaultwarden-backup /app/backup.sh
    ```
+
+---
+
+最后参考 [Cloudflare 配置指南](docs/cloudflare-setup.md) 为 `/identity/connect/token` 部署防暴破 WAF 限流规则，并为 `/admin*` 启用邮箱 OTP 双因素认证保护！
 
 ---
 
