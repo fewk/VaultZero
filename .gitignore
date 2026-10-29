@@ -3,11 +3,15 @@
 .env.*
 !.env.example
 rclone.conf
+**/rclone.conf
 *.key
 *.enc
 *.pem
 *.crt
 .cloudflared/
+
+# Dependencies
+node_modules/
 
 # Vaultwarden & Service Data
 data/

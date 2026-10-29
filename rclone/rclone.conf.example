@@ -21,3 +21,17 @@ secret_access_key = <CLOUDFLARE_R2_SECRET_ACCESS_KEY>
 endpoint = https://<CLOUDFLARE_ACCOUNT_ID>.r2.cloudflarestorage.com
 acl = private
 no_check_bucket = true
+
+# ------------------------------------------------------------------------------
+# Optional Secondary Remote: WebDAV (e.g. InfiniCLOUD, Nextcloud, Jianguoyun, NAS)
+# 可选的第二备份远端：WebDAV（例如 InfiniCLOUD / 坚果云 / 群晖 NAS / Nextcloud）
+#
+# Password Obscuring / 密码混淆加密方法:
+#   docker exec vaultwarden-backup rclone obscure "your_plain_password"
+# ------------------------------------------------------------------------------
+# [webdav]
+# type = webdav
+# url = https://dav.example.com/dav/
+# vendor = other
+# user = your_username
+# pass = <OBSCURED_PASSWORD_FROM_RCLONE_OBSCURE>

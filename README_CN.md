@@ -174,10 +174,10 @@ cp .env.example /opt/vaultwarden/.env
 nano /opt/vaultwarden/.env
 chmod 0600 /opt/vaultwarden/.env
 
-# 配置 Cloudflare R2 对象存储密钥（供自动热备使用）
+# 配置 Cloudflare R2 对象存储密钥（供自动热备使用，容器以 UID 1100 运行需读权限）
 cp rclone/rclone.conf.example /opt/vaultwarden/rclone/rclone.conf
 nano /opt/vaultwarden/rclone/rclone.conf
-chmod 0600 /opt/vaultwarden/rclone/rclone.conf
+chmod 0644 /opt/vaultwarden/rclone/rclone.conf
 ```
 
 ---
@@ -202,6 +202,37 @@ cd /opt/vaultzero
 ```
 
 最后参考 [Cloudflare 配置指南](docs/cloudflare-setup.md) 为 `/identity/connect/token` 部署防暴破 WAF 限流规则，并为 `/admin*` 启用邮箱 OTP 双因素认证保护！
+
+---
+
+### 进阶：多云异地容灾备份（Cloudflare R2 + WebDAV 双备份）
+
+如果您希望在 Cloudflare R2 的基础上，同时备份到私有 WebDAV（如 InfiniCLOUD / 坚果云 / 群晖 NAS / Nextcloud）：
+
+1. **生成 WebDAV 加密密码**：
+   ```bash
+   # Rclone 要求密码经过混淆加密存储，运行以下命令获取密文：
+   docker exec vaultwarden-backup rclone obscure "您的WebDAV明文密码"
+   ```
+2. **在 `/opt/vaultwarden/rclone/rclone.conf` 追加 WebDAV 配置**：
+   ```ini
+   [webdav]
+   type = webdav
+   url = https://dav.example.com/dav/
+   vendor = other
+   user = 您的用户名
+   pass = <上方生成的混淆密文>
+   ```
+3. **在 `/opt/vaultwarden/.env` 启用第二远端**：
+   ```bash
+   echo "RCLONE_REMOTE_NAME_1=webdav" >> /opt/vaultwarden/.env
+   echo "RCLONE_REMOTE_DIR_1=/vaultwarden-backup" >> /opt/vaultwarden/.env
+   ```
+4. **重启并验证双云备份**：
+   ```bash
+   ./vaultzero.sh restart
+   docker exec vaultwarden-backup /app/backup.sh
+   ```
 
 ---
 

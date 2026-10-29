@@ -140,10 +140,10 @@ cp .env.example /opt/vaultwarden/.env
 nano /opt/vaultwarden/.env
 chmod 0600 /opt/vaultwarden/.env
 
-# Configure Cloudflare R2 credentials for automated backups
+# Configure Cloudflare R2 credentials for automated backups (UID 1100 requires read access)
 cp rclone/rclone.conf.example /opt/vaultwarden/rclone/rclone.conf
 nano /opt/vaultwarden/rclone/rclone.conf
-chmod 0600 /opt/vaultwarden/rclone/rclone.conf
+chmod 0644 /opt/vaultwarden/rclone/rclone.conf
 ```
 
 ### Step 3: Deploy Services & Create Admin Account
@@ -168,6 +168,36 @@ cd /opt/vaultzero
 Follow the [Cloudflare Setup Guide](docs/cloudflare-setup.md) to enable WAF rate limiting on `/identity/connect/token` and protect `/admin` with Zero Trust Email OTP.
 
 Access your Vaultwarden instance securely at `https://vault.yourdomain.com`!
+
+---
+
+### Advanced: Multi-Cloud Redundant Backup (Cloudflare R2 + WebDAV)
+
+To achieve true 3-2-1 multi-cloud redundancy, you can configure secondary backup destinations (e.g. InfiniCLOUD, Nextcloud, Synology NAS, or WebDAV) alongside Cloudflare R2:
+
+1. **Obscure WebDAV Password**:
+   ```bash
+   docker exec vaultwarden-backup rclone obscure "your_plain_password"
+   ```
+2. **Append WebDAV Remote to `/opt/vaultwarden/rclone/rclone.conf`**:
+   ```ini
+   [webdav]
+   type = webdav
+   url = https://dav.example.com/dav/
+   vendor = other
+   user = your_username
+   pass = <obscured_password_from_step_1>
+   ```
+3. **Enable Secondary Remote in `/opt/vaultwarden/.env`**:
+   ```bash
+   echo "RCLONE_REMOTE_NAME_1=webdav" >> /opt/vaultwarden/.env
+   echo "RCLONE_REMOTE_DIR_1=/vaultwarden-backup" >> /opt/vaultwarden/.env
+   ```
+4. **Restart & Trigger Dual Backup**:
+   ```bash
+   ./vaultzero.sh restart
+   docker exec vaultwarden-backup /app/backup.sh
+   ```
 
 ---
 
