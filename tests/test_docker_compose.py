@@ -60,7 +60,7 @@ def test_docker_compose_schema_and_constraints():
     assert "BACKUP_ZIP_PASS" in bk_env.get("ZIP_PASSWORD", "")
 
     bk_volumes = bk.get("volumes", [])
-    assert "/opt/vaultwarden/data:/vaultwarden/data:ro" in bk_volumes
+    assert "/opt/vaultwarden/data:/bitwarden/data:ro" in bk_volumes
     assert "/opt/vaultwarden/rclone:/config/rclone" in bk_volumes
 
     bk_logging = bk.get("logging", {})
