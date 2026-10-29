@@ -175,12 +175,8 @@ cmd_logs() {
 cmd_backup() {
     echo "==> Triggering on-demand hot backup via vaultwarden-backup container..."
     if docker ps --format '{{.Names}}' | grep -q '^vaultwarden-backup$'; then
-        docker restart vaultwarden-backup
-        echo "==> Backup triggered. Showing live backup logs:"
-        docker logs -f vaultwarden-backup &
-        LOG_PID=$!
-        sleep 8
-        kill "${LOG_PID}" 2>/dev/null || true
+        docker exec vaultwarden-backup /app/backup.sh
+        echo "==> [SUCCESS] Hot backup execution completed."
     else
         echo "[ERROR] Container vaultwarden-backup is not running." >&2
         exit 1
