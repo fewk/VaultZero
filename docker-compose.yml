@@ -38,6 +38,7 @@ services:
       - BACKUP_KEEP_DAYS=30              # Retain last 30 days of backups in cloud storage
       - RCLONE_REMOTE_NAME=${RCLONE_REMOTE_NAME:-r2}
       - RCLONE_REMOTE_DIR=${RCLONE_REMOTE_DIR:-/vaultwarden-backup}
+      - RCLONE_GLOBAL_FLAG=--s3-no-check-bucket
       - TIMEZONE=${TZ:-Asia/Shanghai}
       # Optional Notification Settings:
       # - TELEGRAM_BOT_TOKEN=${TG_BOT_TOKEN}
