@@ -8,6 +8,10 @@
 [![Pure IPv6](https://img.shields.io/badge/Network-Pure%20IPv6%20Native-blueviolet.svg)](#)
 [![Docker Host Mode](https://img.shields.io/badge/Docker-Host%20Networking-2496ed.svg)](#)
 
+[English](README.md) | [简体中文](README_CN.md)
+
+<br>
+
 **Turnkey, production-grade, $0.00/month self-hosted Vaultwarden on Google Cloud Platform Always Free with Cloudflare Tunnel, Zero Trust WAF, and automated Cloudflare R2 disaster recovery.**
 
 </div>
@@ -176,7 +180,8 @@ VaultZero/
 ├── .env.example              # Sample environment configuration template
 ├── .gitignore                # Git exclusions for secrets and runtime data
 ├── LICENSE                   # MIT License
-├── README.md                 # Project architecture and operations guide
+├── README.md                 # Project architecture and operations guide (English)
+├── README_CN.md              # Project architecture and operations guide (Chinese)
 ├── docker-compose.yml        # Docker Compose orchestration (Vaultwarden + Backup)
 ├── docs/                     # Architecture specifications and implementation runbooks
 │   ├── cloudflare-setup.md   # Cloudflare Tunnel, WAF, Zero Trust & R2 runbook

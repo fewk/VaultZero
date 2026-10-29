@@ -7,6 +7,7 @@ import pytest
 
 DOC_FILES = [
     "README.md",
+    "README_CN.md",
     "docs/gcp-deployment.md",
     "docs/cloudflare-setup.md",
     "docs/superpowers/specs/2026-10-28-vaultwarden-gcp-ipv6-design.md",
@@ -53,6 +54,13 @@ def test_readme_links_to_docs():
 
     assert "docs/gcp-deployment.md" in readme_content, "README must link to docs/gcp-deployment.md"
     assert "docs/cloudflare-setup.md" in readme_content, "README must link to docs/cloudflare-setup.md"
+    assert "README_CN.md" in readme_content, "README.md must link to README_CN.md"
+
+    with open("README_CN.md", "r", encoding="utf-8") as f:
+        readme_cn = f.read()
+    assert "docs/gcp-deployment.md" in readme_cn
+    assert "docs/cloudflare-setup.md" in readme_cn
+    assert "README.md" in readme_cn
 
 
 def test_relative_markdown_links_validity():

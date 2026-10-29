@@ -1,13 +1,16 @@
 # ==============================================================================
-# Rclone Configuration Template for Cloudflare R2
+# Rclone Configuration Template for Cloudflare R2 / Cloudflare R2 备份配置模板
 #
-# Usage:
-# 1. Create an R2 bucket in the Cloudflare Dashboard (e.g., named 'vaultwarden-backup')
+# Usage / 配置步骤:
+# 1. Create an R2 bucket in Cloudflare Dashboard (e.g., named 'vaultwarden-backup')
+#    在 Cloudflare 控制台新建一个 R2 存储桶（例如命名为 'vaultwarden-backup'）
 # 2. Generate an R2 API Token with 'Object Read & Write' permissions
-# 3. Copy this template to rclone/rclone.conf:
-#      cp rclone/rclone.conf.example rclone/rclone.conf
-#      chmod 600 rclone/rclone.conf
-# 4. Replace placeholder credentials below with your Cloudflare R2 details
+#    创建具有“对象读写 (Object Read & Write)”权限的 R2 API 令牌
+# 3. Copy this template to rclone.conf / 复制本模板到运行目录:
+#      cp rclone/rclone.conf.example /opt/vaultwarden/rclone/rclone.conf
+#      chmod 0600 /opt/vaultwarden/rclone/rclone.conf
+# 4. Replace placeholder credentials below with your Cloudflare R2 details:
+#    将下方的占位符替换为您自己的 Cloudflare R2 密钥信息
 # ==============================================================================
 
 [r2]
