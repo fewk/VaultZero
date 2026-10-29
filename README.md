@@ -114,18 +114,21 @@ gcloud compute ssh vaultwarden-free --tunnel-through-iap --zone us-west1-b
 
 ### Step 2: Bootstrap VM & Cloudflare Tunnel
 
-On the VM, clone this repository and run the automated setup using the unified CLI:
+On the VM, configure NAT64 DNS so pure IPv6 can reach IPv4-only GitHub, clone this repository, and run automated setup:
 
 ```bash
 sudo -i
+
+# Set NAT64 DNS resolvers so pure-IPv6 VM can resolve and reach IPv4 endpoints (e.g. GitHub)
+echo -e "nameserver 2a01:4ff:f0:9876::1\nnameserver 2a00:1098:2b::1\nnameserver 2606:4700:4700::1111" > /etc/resolv.conf
+
+# Clone repository and run automated bootstrap & tunnel installer
 git clone https://github.com/fewk/VaultZero.git /opt/vaultzero
 cd /opt/vaultzero
-
-# Run one-step setup (DNS64/NAT64, 1GB swap, Docker CE, and Cloudflare Tunnel):
-bash ./vaultzero.sh setup YOUR_CLOUDFLARE_TUNNEL_TOKEN
+./vaultzero.sh setup YOUR_CLOUDFLARE_TUNNEL_TOKEN
 ```
 
-Configure your secrets and R2 backup credentials:
+Configure your domain and secrets:
 
 ```bash
 # Configure environment variables
@@ -139,13 +142,20 @@ nano /opt/vaultwarden/rclone/rclone.conf
 chmod 0600 /opt/vaultwarden/rclone/rclone.conf
 ```
 
-### Step 3: Deploy Services & Verify
+### Step 3: Deploy Services & Create Admin Account
 
 Start Vaultwarden and the automated backup companion daemon:
 
 ```bash
 cd /opt/vaultzero
 ./vaultzero.sh up
+
+# Open registration temporarily to create your master admin account
+./vaultzero.sh register on
+
+# Visit https://vault.yourdomain.com and create your account!
+# When done, immediately lock registration for maximum security:
+./vaultzero.sh register off
 
 # Verify zero public IPv4, zero public listening ports, and health
 ./vaultzero.sh verify

@@ -51,21 +51,21 @@ sudo systemctl status cloudflared
 
 ---
 
-## 2. Public Hostname Routing
+## 2. Public Hostname Routing (路由配置)
 
 Route your custom domain directly through the tunnel to Vaultwarden's local container port.
 
-1. In the Cloudflare Zero Trust Dashboard, go to your tunnel (`vaultzero-tunnel`) and select the **Public Hostname** tab.
-2. Click **Add a public hostname**:
-   - **Subdomain**: `vault` (or your preferred subdomain)
-   - **Domain**: Select your domain from the dropdown (e.g. `yourdomain.com`)
-   - **Path**: Leave blank
-   - **Service**:
-     - **Type**: `HTTP`
+1. In the Cloudflare Zero Trust Dashboard, go to your tunnel (`vaultzero-tunnel`) and select the **Public Hostnames** tab *(in Chinese dashboard, this tab is labeled **“路由”**)*.
+2. Click **Add a public hostname** (添加公共主机名):
+   - **Subdomain** (子域): `vault` (or your preferred subdomain like `pw`)
+   - **Domain** (域): Select your domain from the dropdown (e.g. `yourdomain.com`)
+   - **Path** (路径): Leave blank
+   - **Service** (服务):
+     - **Type** (类型): **`HTTP`** *(CRITICAL: Must be HTTP, NOT HTTPS! Cloudflare edge terminates SSL; local tunnel communication to Vaultwarden is plaintext HTTP)*
      - **URL**: `127.0.0.1:8080` (or `localhost:8080`)
 3. Under **Additional application settings** -> **HTTP Settings**:
    - Ensure **HTTP Host Header** is left default or matches your domain.
-4. Click **Save hostname**.
+4. Click **Save hostname** (保存主机名).
 
 Cloudflare automatically manages and provisions universal SSL/TLS certificates for `vault.yourdomain.com`.
 

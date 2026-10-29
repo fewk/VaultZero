@@ -23,6 +23,7 @@ def test_vaultzero_cli_help_menu():
         "logs",
         "backup",
         "restore",
+        "register",
         "setup",
     ]
     for cmd in expected_commands:

@@ -58,11 +58,13 @@ else
     # Inspect local network interfaces for any public IPv4 addresses
     PUBLIC_IPV4_FOUND=""
     if command -v ip >/dev/null 2>&1; then
-        for ip in $(ip -4 addr show scope global 2>/dev/null | awk '{print $2}' | cut -d'/' -f1); do
-            # Filter private RFC1918 (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10) and CGNAT
-            if ! echo "${ip}" | grep -Eq '^(10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.|100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\.|127\.)'; then
-                PUBLIC_IPV4_FOUND="${ip}"
-                break
+        for ip in $(ip -4 addr show scope global 2>/dev/null | awk '/inet / {print $2}' | cut -d'/' -f1); do
+            if echo "${ip}" | grep -Eq '^([0-9]{1,3}\.){3}[0-9]{1,3}$'; then
+                # Filter private RFC1918 (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 100.64.0.0/10) and CGNAT
+                if ! echo "${ip}" | grep -Eq '^(10\.|172\.(1[6-9]|2[0-9]|3[0-1])\.|192\.168\.|100\.(6[4-9]|[7-9][0-9]|1[0-1][0-9]|12[0-7])\.|127\.)'; then
+                    PUBLIC_IPV4_FOUND="${ip}"
+                    break
+                fi
             fi
         done
     fi

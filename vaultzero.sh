@@ -31,12 +31,15 @@ Commands:
     logs [service]      View logs for vaultwarden, backup, or tunnel (default: all)
     backup              Trigger an immediate zero-lock hot backup to Cloudflare R2
     restore [args]      Restore database & data from R2 or local archive (03-restore-backup.sh)
+    register [on|off]   Temporarily open or lock down user registration
     setup [TOKEN]       Run automated VM bootstrap and Cloudflare tunnel installer
     help                Show this help message
 
 Examples:
     ./vaultzero.sh status
     ./vaultzero.sh verify
+    ./vaultzero.sh register on
+    ./vaultzero.sh register off
     ./vaultzero.sh logs vaultwarden
     ./vaultzero.sh backup
     ./vaultzero.sh restore --latest
@@ -104,13 +107,46 @@ cmd_down() {
 }
 
 cmd_restart() {
-    echo "==> Restarting VaultZero containers..."
-    docker compose -f "${COMPOSE_DIR}/docker-compose.yml" restart
+    echo "==> Restarting VaultZero containers (reloading configuration)..."
+    docker compose -f "${COMPOSE_DIR}/docker-compose.yml" up -d --force-recreate
     if command -v systemctl >/dev/null 2>&1 && [ -d /run/systemd/system ]; then
         echo "==> Restarting cloudflared.service..."
         systemctl restart cloudflared.service || true
     fi
     echo "==> Restart complete."
+}
+
+cmd_register() {
+    local action="${1:-}"
+    local compose_file="${COMPOSE_DIR}/docker-compose.yml"
+    local env_file="${COMPOSE_DIR}/.env"
+
+    if [ ! -f "${compose_file}" ]; then
+        echo "[ERROR] Compose file not found at ${compose_file}" >&2
+        exit 1
+    fi
+
+    case "${action}" in
+        on|enable|true)
+            echo "==> Enabling new user registration..."
+            sed -i 's/SIGNUPS_ALLOWED=false/SIGNUPS_ALLOWED=true/' "${compose_file}"
+            [ -f "${env_file}" ] && sed -i 's/SIGNUPS_ALLOWED=false/SIGNUPS_ALLOWED=true/' "${env_file}" || true
+            docker compose -f "${compose_file}" up -d --force-recreate vaultwarden
+            echo "==> [SUCCESS] Registration is now OPEN. Visit your vault to create your account."
+            echo "    IMPORTANT: Lock registration when done: ./vaultzero.sh register off"
+            ;;
+        off|disable|false)
+            echo "==> Disabling new user registration (Securing vault)..."
+            sed -i 's/SIGNUPS_ALLOWED=true/SIGNUPS_ALLOWED=false/' "${compose_file}"
+            [ -f "${env_file}" ] && sed -i 's/SIGNUPS_ALLOWED=true/SIGNUPS_ALLOWED=false/' "${env_file}" || true
+            docker compose -f "${compose_file}" up -d --force-recreate vaultwarden
+            echo "==> [SUCCESS] Registration is now CLOSED."
+            ;;
+        *)
+            echo "Usage: ./vaultzero.sh register [on|off]" >&2
+            exit 1
+            ;;
+    esac
 }
 
 cmd_logs() {
@@ -213,6 +249,9 @@ case "${COMMAND}" in
         ;;
     restore)
         cmd_restore "$@"
+        ;;
+    register)
+        cmd_register "$@"
         ;;
     setup)
         cmd_setup "$@"
