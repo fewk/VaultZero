@@ -33,6 +33,7 @@ Commands:
     restore [args]      Restore database & data from R2 or local archive (03-restore-backup.sh)
     register [on|off]   Temporarily open or lock down user registration
     setup [TOKEN]       Run automated VM bootstrap and Cloudflare tunnel installer
+    fix-dns             Restore and lock NAT64 DNS resolvers in /etc/resolv.conf
     help                Show this help message
 
 Examples:
@@ -219,6 +220,32 @@ cmd_setup() {
     echo "==> Setup complete! Next: configure /opt/vaultwarden/.env and run: ./vaultzero.sh up"
 }
 
+cmd_fix_dns() {
+    echo "==> Restoring and locking NAT64 DNS resolvers in /etc/resolv.conf..."
+    if command -v chattr >/dev/null 2>&1; then
+        chattr -i /etc/resolv.conf 2>/dev/null || true
+    fi
+    if [ -L /etc/resolv.conf ]; then
+        rm -f /etc/resolv.conf
+    fi
+    cat <<'EOF' > /etc/resolv.conf
+# Managed by VaultZero
+nameserver 2a01:4ff:f0:9876::1
+nameserver 2a00:1098:2b::1
+nameserver 2606:4700:4700::1111
+options edns0 rotate timeout:2 attempts:3
+EOF
+    if [ -d /etc/dhcp ]; then
+        cat <<'EOF' > /etc/dhcp/dhclient.conf
+supersede domain-name-servers 2a01:4ff:f0:9876::1, 2a00:1098:2b::1, 2606:4700:4700::1111;
+EOF
+    fi
+    if command -v chattr >/dev/null 2>&1; then
+        chattr +i /etc/resolv.conf 2>/dev/null || true
+    fi
+    echo "    NAT64 DNS resolvers locked with chattr +i."
+}
+
 # ------------------------------------------------------------------------------
 # Main Dispatcher
 # ------------------------------------------------------------------------------
@@ -255,6 +282,9 @@ case "${COMMAND}" in
         ;;
     setup)
         cmd_setup "$@"
+        ;;
+    fix-dns|dns-fix)
+        cmd_fix_dns
         ;;
     help|-h|--help)
         show_help

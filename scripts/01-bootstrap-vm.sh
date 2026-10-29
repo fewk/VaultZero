@@ -34,6 +34,11 @@ if command -v lsattr >/dev/null 2>&1 && command -v chattr >/dev/null 2>&1; then
     chattr -i /etc/resolv.conf 2>/dev/null || true
 fi
 
+# If /etc/resolv.conf is a symlink (common on systemd-resolved), remove it so we write a real ext4 regular file
+if [ -L /etc/resolv.conf ]; then
+    rm -f /etc/resolv.conf
+fi
+
 # Configure systemd-resolved override if systemd-resolved is active
 if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet systemd-resolved 2>/dev/null; then
     mkdir -p /etc/systemd/resolved.conf.d
@@ -45,6 +50,13 @@ DNSSEC=no
 Domains=~.
 EOF
     systemctl restart systemd-resolved 2>/dev/null || true
+fi
+
+# Configure dhclient supersede to prevent DHCP overwrite on lease renewal
+if [ -d /etc/dhcp ]; then
+    cat <<'EOF' > /etc/dhcp/dhclient.conf
+supersede domain-name-servers 2a01:4ff:f0:9876::1, 2a00:1098:2b::1, 2606:4700:4700::1111;
+EOF
 fi
 
 # Write direct resolv.conf configuration

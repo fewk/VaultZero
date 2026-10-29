@@ -97,7 +97,7 @@ NAT64_TARGET="https://api.github.com"
 if curl -sS -6 -m 10 "${NAT64_TARGET}" >/dev/null 2>&1; then
     log_pass "Outbound NAT64 connectivity verified: ${NAT64_TARGET} reached successfully over pure IPv6 (-6)."
 else
-    log_fail "Failed to reach ${NAT64_TARGET} over IPv6. Ensure DNS64 resolvers are active in /etc/resolv.conf."
+    log_fail "Failed to reach ${NAT64_TARGET} over IPv6. Ensure DNS64 resolvers are active in /etc/resolv.conf (Fix: run './vaultzero.sh fix-dns')."
 fi
 
 # ------------------------------------------------------------------------------
