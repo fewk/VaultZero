@@ -36,7 +36,8 @@ services:
       - CRON=0 3 * * *                   # Run backup daily at 03:00
       - ZIP_PASSWORD=${BACKUP_ZIP_PASS}  # AES zip encryption password
       - BACKUP_KEEP_DAYS=30              # Retain last 30 days of backups in cloud storage
-      - RCLONE_REMOTE_NAME=${RCLONE_REMOTE_NAME:-r2:vaultwarden-backup}
+      - RCLONE_REMOTE_NAME=${RCLONE_REMOTE_NAME:-r2}
+      - RCLONE_REMOTE_DIR=${RCLONE_REMOTE_DIR:-/vaultwarden-backup}
       - TIMEZONE=${TZ:-Asia/Shanghai}
       # Optional Notification Settings:
       # - TELEGRAM_BOT_TOKEN=${TG_BOT_TOKEN}
