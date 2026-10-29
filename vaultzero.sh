@@ -221,7 +221,7 @@ cmd_setup() {
 }
 
 cmd_fix_dns() {
-    echo "==> Restoring and locking NAT64 DNS resolvers in /etc/resolv.conf..."
+    echo "==> Restoring and locking pure DNS64/NAT64 resolvers in /etc/resolv.conf..."
     if command -v chattr >/dev/null 2>&1; then
         chattr -i /etc/resolv.conf 2>/dev/null || true
     fi
@@ -229,15 +229,15 @@ cmd_fix_dns() {
         rm -f /etc/resolv.conf
     fi
     cat <<'EOF' > /etc/resolv.conf
-# Managed by VaultZero
+# Managed by VaultZero (Pure DNS64 / NAT64 Resolvers)
 nameserver 2a01:4ff:f0:9876::1
+nameserver 2001:67c:2960::64
 nameserver 2a00:1098:2b::1
-nameserver 2606:4700:4700::1111
-options edns0 rotate timeout:2 attempts:3
+options edns0 timeout:2 attempts:3
 EOF
     if [ -d /etc/dhcp ]; then
         cat <<'EOF' > /etc/dhcp/dhclient.conf
-supersede domain-name-servers 2a01:4ff:f0:9876::1, 2a00:1098:2b::1, 2606:4700:4700::1111;
+supersede domain-name-servers 2a01:4ff:f0:9876::1, 2001:67c:2960::64, 2a00:1098:2b::1;
 EOF
     fi
     if command -v chattr >/dev/null 2>&1; then

@@ -156,7 +156,7 @@ gcloud compute ssh vm-vaultzero --tunnel-through-iap --zone=us-west1-b
 sudo -i
 
 # 1. 注入公共 NAT64 解析，打通 IPv4 站点访问（例如 GitHub）
-echo -e "nameserver 2a01:4ff:f0:9876::1\nnameserver 2a00:1098:2b::1\nnameserver 2606:4700:4700::1111" > /etc/resolv.conf
+echo -e "nameserver 2a01:4ff:f0:9876::1\nnameserver 2001:67c:2960::64\nnameserver 2a00:1098:2b::1" > /etc/resolv.conf
 
 # 2. 克隆项目仓库
 git clone https://github.com/fewk/VaultZero.git /opt/vaultzero

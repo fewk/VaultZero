@@ -21,7 +21,7 @@ def test_bootstrap_script_syntax_and_keywords():
     # Must contain NAT64 DNS resolvers
     assert "2a01:4ff:f0:9876::1" in content
     assert "2a00:1098:2b::1" in content
-    assert "2606:4700:4700::1111" in content
+    assert "2001:67c:2960::64" in content
 
     # Must validate NAT64 outbound connectivity to IPv4 sites
     assert "api.github.com" in content
@@ -46,10 +46,10 @@ def test_bootstrap_script_dns64_config():
     with open(SCRIPT_PATH, "r", encoding="utf-8") as f:
         content = f.read()
 
-    # Verify Ashburn & Amsterdam NAT64 gateways and Cloudflare fallback
+    # Verify Ashburn & Amsterdam NAT64 gateways and level66 fallback
     assert "2a01:4ff:f0:9876::1" in content, "Missing Ashburn NAT64 resolver"
     assert "2a00:1098:2b::1" in content, "Missing Amsterdam NAT64 resolver"
-    assert "2606:4700:4700::1111" in content, "Missing Cloudflare IPv6 resolver"
+    assert "2001:67c:2960::64" in content, "Missing level66 NAT64 resolver"
     assert "/etc/resolv.conf" in content, "Must configure /etc/resolv.conf"
     assert "chattr" in content, "Must use chattr to protect resolv.conf against cloud-init/dhcp overwrites"
 

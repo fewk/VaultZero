@@ -44,8 +44,7 @@ if command -v systemctl >/dev/null 2>&1 && systemctl is-active --quiet systemd-r
     mkdir -p /etc/systemd/resolved.conf.d
     cat <<'EOF' > /etc/systemd/resolved.conf.d/nat64.conf
 [Resolve]
-DNS=2a01:4ff:f0:9876::1 2a00:1098:2b::1 2606:4700:4700::1111
-FallbackDNS=2001:4860:4860::8888 2606:4700:4700::1001
+DNS=2a01:4ff:f0:9876::1 2001:67c:2960::64 2a00:1098:2b::1
 DNSSEC=no
 Domains=~.
 EOF
@@ -55,20 +54,23 @@ fi
 # Configure dhclient supersede to prevent DHCP overwrite on lease renewal
 if [ -d /etc/dhcp ]; then
     cat <<'EOF' > /etc/dhcp/dhclient.conf
-supersede domain-name-servers 2a01:4ff:f0:9876::1, 2a00:1098:2b::1, 2606:4700:4700::1111;
+supersede domain-name-servers 2a01:4ff:f0:9876::1, 2001:67c:2960::64, 2a00:1098:2b::1;
 EOF
 fi
 
 # Write direct resolv.conf configuration
-# nat64.net Ashburn: 2a01:4ff:f0:9876::1
-# nat64.net Amsterdam: 2a00:1098:2b::1
-# Cloudflare Public IPv6: 2606:4700:4700::1111
+# All resolvers MUST be combined DNS64 + NAT64 translators.
+# Standard DNS resolvers (like 1.1.1.1) must NEVER be included because they return IPv4 A records
+# which causes pure IPv6 instances to hang on unreachable IPv4 TCP connections.
+# 1. nat64.net Ashburn (US): 2a01:4ff:f0:9876::1
+# 2. level66.net (DE): 2001:67c:2960::64
+# 3. nat64.net Amsterdam (NL): 2a00:1098:2b::1
 cat <<'EOF' > /etc/resolv.conf
-# Managed by VaultZero Bootstrap
+# Managed by VaultZero Bootstrap (Pure DNS64 / NAT64 Resolvers)
 nameserver 2a01:4ff:f0:9876::1
+nameserver 2001:67c:2960::64
 nameserver 2a00:1098:2b::1
-nameserver 2606:4700:4700::1111
-options edns0 rotate timeout:2 attempts:3
+options edns0 timeout:2 attempts:3
 EOF
 
 # Lock /etc/resolv.conf to prevent DHCP overwrite on IPv6-only cloud instances
