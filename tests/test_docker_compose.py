@@ -61,7 +61,7 @@ def test_docker_compose_schema_and_constraints():
 
     bk_volumes = bk.get("volumes", [])
     assert "/opt/vaultwarden/data:/bitwarden/data:ro" in bk_volumes
-    assert "/opt/vaultwarden/rclone:/config/rclone" in bk_volumes
+    assert "/opt/vaultwarden/rclone:/config" in bk_volumes
 
     bk_logging = bk.get("logging", {})
     assert bk_logging.get("driver") == "json-file"
